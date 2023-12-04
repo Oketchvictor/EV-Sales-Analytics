@@ -1,0 +1,510 @@
+---
+title: "EV"
+author: "User"
+date: "4/28/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# Load required libraries
+library(dplyr)
+library(tidytext)
+library(stringr)
+library(tidyr)
+library(tm)
+library(tseries) # for cointegration test
+library(ggplot2) # for plotting
+library(dplyr)
+library(lmtest)
+library(quantmod)
+library(readr)
+library(readxl)
+library(arsenal)
+library(vars)
+library(lmtest)
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(RColorBrewer)
+library(topicmodels)
+library(MASS)
+library(data.table)
+library(ggplot2)
+library(dplyr)
+library(reshape2)
+library(tidyr)
+library(ggpubr)
+library(MASS)
+library(leaflet)
+library(dplyr)
+library(maps)
+library(ggplot2)
+library(ggmap)
+
+```
+
+
+
+```{r, include=FALSE}
+library(readr)
+data <- read_csv("C:/Users/Victor/Desktop/MAO3754.csv")
+View(data)
+```
+
+1.Multiple scatterplots (or boxplots) for a categorical variable using the for loop, and export them as jpeg files:
+
+```{r}
+library(ggplot2)
+
+# Assuming the categorical variable is "category"
+unique_categories <- unique(data$category)
+
+for (category in unique_categories) {
+  plot_data <- data[data$category == category, ]
+  plot <- ggplot(plot_data, aes(x = parameter, y = value)) + 
+    geom_point() + 
+    ggtitle(paste("Category:", category)) +
+    xlab("Parameter") + ylab("Value")
+  ggsave(paste("plot_", category, ".jpeg", sep = ""), plot, device = "jpeg")
+}
+
+
+```
+
+
+```{r, warning=FALSE}
+
+# Define variables
+categorical_var <- "region"
+plot_var <- "value"
+
+# Create for loop to generate plots for each level of the categorical variable
+for(i in unique(data[[categorical_var]])) {
+  plot_data <- data %>% filter(.data[[categorical_var]] == i)
+  jpeg(filename = paste0(i,".jpeg"), width = 800, height = 600)
+  plot <- ggplot(plot_data, aes_string(x = plot_var)) + geom_boxplot() + ggtitle(i)
+  print(plot)
+  dev.off()
+}
+
+plot_data
+```
+
+
+
+```{r}
+# load required packages
+library(ggplot2)
+
+# create a list of unique categories in the 'category' column
+cat_list <- unique(data$category)
+
+# create a for loop to create scatterplots or boxplots for each category
+for (cat in cat_list) {
+  # filter data for a specific category
+  cat_data <- data[data$category == cat, ]
+  
+  # create scatterplot or boxplot depending on the parameter
+  if (cat_data$parameter[1] == "CO2 emissions") {
+    plot <- ggplot(cat_data, aes(x = year, y = value, color = mode)) +
+      geom_point(aes(size = powertrain), alpha = 0.7) +
+      ggtitle(paste0(cat, " ", cat_data$parameter[1])) +
+      theme_bw()
+  } else {
+    plot <- ggplot(cat_data, aes(x = mode, y = value, fill = powertrain)) +
+      geom_boxplot() +
+      ggtitle(paste0(cat, " ", cat_data$parameter[1])) +
+      theme_bw()
+  }
+  
+  # save plot as jpeg file
+  ggsave(paste0(cat, "_", cat_data$parameter[1], ".jpeg"), plot)
+}
+
+
+```
+
+
+
+2. Different types of plots, including scatterplots, boxplots (try to change x axis names and rotate the names to a certain angle), barplots (ideally with standard deviation bar), and pie charts:
+
+```{r}
+
+library(ggplot2)
+
+# Scatterplot
+ggplot(data, aes(x = parameter, y = value, color = region)) + 
+  geom_point() +
+  xlab("Parameter") + ylab("Value") +
+  ggtitle("Scatterplot by Region")
+
+# Boxplot with rotated x-axis labels
+ggplot(data, aes(x = parameter, y = value, fill = region)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  xlab("Parameter") + ylab("Value") +
+  ggtitle("Boxplot by Region")
+
+# Barplot with standard deviation error bars
+library(dplyr)
+data_summary <- data %>%
+  group_by(region, category, parameter) %>%
+  summarize(mean_value = mean(value), sd_value = sd(value))
+
+ggplot(data_summary, aes(x = parameter, y = mean_value, fill = region)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  geom_errorbar(aes(ymin = mean_value - sd_value, ymax = mean_value + sd_value),
+                position = position_dodge(0.9), width = 0.25) +
+  xlab("Parameter") + ylab("Mean Value") +
+  ggtitle("Barplot with Standard Deviation Error Bars by Region")
+
+# Pie chart
+library(tidyr)
+data_summary2 <- data %>%
+  group_by(region) %>%
+  summarize(count = n())
+
+ggplot(data_summary2, aes(x = "", y = count, fill = region)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  ggtitle("Pie Chart by Region")
+
+```
+3. High-dimension plots using the lattice package, and practice using the tidyr and dplyr packages to do variable selection and wide-to-long table conversion, if your dataset allows to do the conversion:
+```{r}
+library(ggplot2)
+
+# Convert data to wide format
+data_wide <- data %>%
+  pivot_wider(names_from = "parameter", values_from = "value")
+
+# Create heatmap using ggplot2
+ggplot(data_wide, aes(x = category, y = region, fill = year)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient(low = "green", high = "blue") +
+  labs(x = "Category", y = "Region", title = "Distribution of New Energy by Region and Category")
+
+
+```
+
+
+```{r, error=FALSE, warning=FALSE}
+library(lattice)
+library(dplyr)
+
+mydata_select <- data %>%
+  dplyr::select(category, parameter, mode, powertrain, year, unit, value)
+
+mydata_long <- mydata_select %>%
+  gather(key = "variable", value = "value", -category, -parameter, -mode, -powertrain, -year, -unit, -value)
+
+bwplot(value ~ unit | category, data = mydata_long)
+
+stripplot(value ~ unit | category, data = mydata_long, jitter.data = TRUE)
+
+
+```
+
+4.	applying the qplot() function in ggplot2 to generate scatterplot, boxplot, histogram, line plot, etc. Try to vary color, shape, and size, whenever possible.
+
+```{r, warning=FALSE}
+# Scatterplot
+qplot(x = value, y = year, data = data, color = region, size = powertrain)
+
+# Boxplot
+qplot(x = category, y = value, data = data, geom = "boxplot", color = region)
+
+# Histogram
+qplot(x = value, data = data, fill = region, alpha = I(0.5), binwidth = 5)
+
+# Line plot
+qplot(x = year, y = value, data = data, group = region, color = region, geom = "line")
+
+
+
+```
+
+
+
+
+
+```{r}
+
+library(ggplot2)
+
+qplot(year, value, data = data, color = region, size = powertrain, alpha = 0.5)
+
+```
+
+
+```{r}
+
+qplot(region, value, data = data, geom = "boxplot", fill = powertrain)
+
+```
+
+
+```{r}
+
+qplot(value, data = data, geom = "histogram", binwidth = 100, fill = powertrain, alpha = 0.5)
+
+```
+
+5.	applying the ggplot() function to generate scatterplot, boxplot, histogram, etc. If your dataset allows you to do linear regression, please give it a try, and check the residual trend by generating a plot. In addition, use ggsave() to save figures in png, tiff, and pdf formats.
+
+```{r}
+library(ggplot2)
+
+# Scatterplot
+ggplot(data = data, aes(x = year, y = value, color = region)) + 
+  geom_point(size = 2) +
+  ggtitle("Electric Vehicle Sales by Region") +
+  xlab("Year") + 
+  ylab("Sales") +
+  theme_bw()
+
+# Boxplot
+ggplot(data = data, aes(x = region, y = value, fill = powertrain)) + 
+  geom_boxplot() +
+  ggtitle("Electric Vehicle Sales by Region and Powertrain Type") +
+  xlab("Region") + 
+  ylab("Sales") +
+  theme_bw()
+
+# Histogram
+ggplot(data = data, aes(x = value)) + 
+  geom_histogram(bins = 10, fill = "#0072B2", alpha = 0.5) +
+  ggtitle("Electric Vehicle Sales Distribution") +
+  xlab("Sales") + 
+  ylab("Frequency") +
+  theme_bw()
+
+# Linear regression and residual plot
+ggplot(data = data, aes(x = year, y = value)) + 
+  geom_point(size = 2) +
+  ggtitle("Electric Vehicle Sales by Year") +
+  xlab("Year") + 
+  ylab("Sales") +
+  theme_bw() +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  ggtitle("Electric Vehicle Sales by Year with Linear Regression") +
+  xlab("Year") + 
+  ylab("Sales") +
+  theme_bw()
+
+# Residual plot
+model <- lm(value ~ year, data = data)
+ggplot(data = data, aes(x = fitted(model), y = resid(model))) +
+  geom_point(alpha = 0.5) +
+  ggtitle("Residual Plot") +
+  xlab("Fitted Values") +
+  ylab("Residuals") +
+  theme_bw()
+
+
+
+```
+
+6.	different strategies to visualize distributions in 1d and 2d (as a way to deal with overplotting). Try to vary the transparency level and use the jitter() function to reduce overplotting.
+
+```{r}
+# 1D density plot with transparency
+ggplot(data = data, aes(x = value)) + 
+  geom_density(alpha = 0.5, fill = "blue") +
+  ggtitle("Electric Vehicle Sales Distribution") +
+  xlab("Sales") + 
+  ylab("Density") +
+  theme_bw()
+
+# 2D scatterplot with jitter and transparency
+ggplot(data = data, aes(x = year, y = value)) + 
+  geom_jitter(width = 0.1, height = 0, alpha = 0.5) +
+  ggtitle("Electric Vehicle Sales by Year") +
+  xlab("Year") + 
+  ylab("Sales") +
+  theme_bw()
+
+
+```
+
+7. Changing color scales, faceting, and creating contingency table with chi-square test of independence:
+```{r}
+# Discrete color scale
+ggplot(data = data, aes(x = year, y = value, color = powertrain)) + 
+  geom_point(size = 2) +
+  ggtitle("Electric Vehicle Sales by Powertrain Type") +
+  xlab("Year") + 
+  ylab("Sales") +
+  scale_color_discrete(name = "Powertrain") +
+  theme_bw()
+
+
+
+```
+
+
+```{r}
+
+# Create a contingency table
+cont_table <- table(data$region, data$category)
+cont_table
+
+```
+
+
+```{r, warning=FALSE}
+# Conduct chi-square test of independence
+chisq.test(cont_table)
+
+
+```
+8.	applying linear models to explore the relationships between a response variable and multiple independent variables. Try to add a high-order predictor, or try to add an interaction factor between two variables. Visualize your model predictions, and use anova() to compare model performance. Use ggplot() methods to plot residuals from your model.
+
+```{r}
+# Fit linear model
+model <- lm(value ~ year + mode*powertrain, data = data)
+
+# Print model summary
+summary(model)
+
+# Add interaction term
+model2 <- lm(value ~ year + mode*powertrain + year*mode, data = data)
+
+# Print model summary
+summary(model2)
+
+anova
+
+```
+
+
+```{r}
+
+# Create scatterplot
+ggplot(data = data, aes(x = year, y = value, color = mode)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+
+```
+
+```{r}
+
+# Load ggfortify package
+library(ggfortify)
+
+# Plot residuals
+autoplot(model, which = 1)
+
+```
+
+
+```{r}
+# fit linear model
+model <- lm(value ~ year * powertrain, data = data)
+
+# print model summary
+summary(model)
+
+
+```
+
+
+```{r}
+# plot model predictions
+ggplot(data, aes(x = year, y = value, color = powertrain)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, aes(group = powertrain))
+
+
+```
+
+
+```{r}
+# plot residuals
+ggplot(data = data.frame(x = model$fitted.values, y = model$residuals)) +
+  geom_point(aes(x, y))
+
+
+```
+
+
+```{r}
+# fit simpler model without interaction term
+simple_model <- lm(value ~ year + powertrain, data = data)
+
+# compare model performance
+anova(simple_model, model)
+
+
+```
+
+
+
+
+A map showing the distribution of different New energies throughout the world 
+```{r}
+
+# Summarize data by region and parameter
+summary_data <- aggregate(value ~ region + parameter, data, sum)
+
+# Rename the value column to total_energy
+names(summary_data)[names(summary_data)=="value"] <- "total_energy"
+
+
+```
+
+
+```{r, warning=FALSE, error=FALSE}
+# Get world map data
+world_map <- map_data("world")
+
+# Merge map data with summarized data
+map_data <- merge(world_map, summary_data, by.x = "region", by.y = "region")
+
+# Create map plot using ggplot2
+ggplot() +
+  geom_map(data = map_data, map = map_data,
+           aes(x = long, y = lat, map_id = region, fill = total_energy),
+           color = "pink", size = 0.1) +
+  scale_fill_gradient(low = "green", high = "blue") +
+  theme_void()
+
+
+```
+
+
+```{r}
+# Convert data to long format
+data_long <- data %>% 
+  pivot_longer(cols = c("value"), names_to = "measurement", values_to = "measurement_value")
+
+# Select variables for plotting
+plot_data <- data_long %>% 
+  dplyr::select(category, parameter, measurement, measurement_value)
+
+# Create high-dimension plot using lattice
+xyplot(measurement_value ~ parameter | category * measurement, data = plot_data, 
+       type = c("p", "l"), auto.key = TRUE, col = c("yellow", "blue", "grey", "purple"),
+       ylim = c(0, 500), xlim = c(0, 500))
+
+
+```
+
+
+
+
+
+
+
+```{r}
+
+
+```
+
+
+
+
+
+
+
+
